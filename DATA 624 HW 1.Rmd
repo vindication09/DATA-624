@@ -6,6 +6,7 @@ output: html_document
 ---
 
 This document contains the homework problems for the first half of the semester. 
+book 1: https://otexts.com/fpp2/
 
 # Week 1 HW Problems 
 ## Problems 2.1 & 2.3
