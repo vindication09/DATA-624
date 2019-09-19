@@ -46,6 +46,12 @@ plot_histogram(Glass2)
 
 RI, NA, AI, and SI have a fairly close to normal distribution. We can see a left skew with Mg and possible an outlier. K has right skew along with Ba and Fe. 
 
+Are we missing data?
+```{r warning=FALSE, message=FALSE}
+plot_missing(Glass)
+```
+
+
 How do we see the relationships between predictors? 
 
 
@@ -219,4 +225,51 @@ glass_norm$Type<-Glass$Type
 
 plot_histogram(glass_norm)
 ```
+
+We can also try a Box-Cox Transformation on variables using the following tutorial:
+https://setscholars.net/2019/05/25/how-to-preprocess-data-in-r-using-box-cox-transformation/
+
+```{r warning=FALSE, message=FALSE}
+# load libraries
+library(mlbench)
+library(caret)
+
+preprocessParams <- preProcess(Glass[,1:9], method=c("BoxCox"))
+
+# summarize transform parameters
+print(preprocessParams)
+
+# transform the dataset using the parameters
+transformed <- predict(preprocessParams, Glass[,1:9])
+
+# summarize the transformed dataset (note pedigree and age)
+#summary(transformed);
+
+plot_histogram(transformed)
+```
+
+Summary Before Box-Cox
+```{r warning=FALSE, messge=FALSE}
+summary(Glass)
+```
+
+Summary After Box-Cox
+```{r warning=FALSE, message=FALSE}
+summary(transformed)
+```
+
+We can see that the transform has made a difference in some of the predictors but not all. Next step would be outlier detection but that is out of scope for the problem. 
+
+
+### 3.2) 
+The soybean data can also be found at the UC Irvine Machine Learning Repository. Data were collected to predict disease in 683 soybeans. The 35 predictors are mostly categorical and include information on the environmental conditions (e.g., temperature, precipitation) and plant conditions (e.g., left
+spots, mold growth). The outcome labels consist of 19 distinct classes.
+
+```{r warning=FALSE, message=FALSE}
+library(mlbench)
+data(Soybean)
+str(Soybean)
+plot_missing(Soybean)
+```
+
 
