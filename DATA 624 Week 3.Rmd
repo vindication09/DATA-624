@@ -265,11 +265,86 @@ We can see that the transform has made a difference in some of the predictors bu
 The soybean data can also be found at the UC Irvine Machine Learning Repository. Data were collected to predict disease in 683 soybeans. The 35 predictors are mostly categorical and include information on the environmental conditions (e.g., temperature, precipitation) and plant conditions (e.g., left
 spots, mold growth). The outcome labels consist of 19 distinct classes.
 
-```{r warning=FALSE, message=FALSE}
+```{r warning=FALSE, message=FALSE, fig.height = 10, fig.width=10}
 library(mlbench)
 data(Soybean)
 str(Soybean)
+plot_missing(Soybean )
+```
+
+We can see that there are several variables that contain missing entries. Perhpas we can deal with this later on in the problem. 
+
+* a) Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?
+
+As we have seen in the literature, a degenerate distribution happens when a predictor variable contains a unique value or values that do not occur often, meaning they have low frequencies. 
+
+Lets examine the class variable before looking at our predictors.
+
+```{r warning=FALSE, message=FALSE}
+ggplot(Soybean,aes(x=Soybean$Class))+geom_histogram(fill="deepskyblue3",colour="black", stat="count")+ggtitle("Distribution by Type of Soybean")+
+  xlab("Soybean Type") +
+  ylab("Count")+
+  coord_flip()+
+labs(caption="UCI Machine Learning Repository")
+```
+
+We can see that there are certain classes that appear much more frequently than others such as phytophthora. 
+
+Lets examine the predictors in a visual context using https://www.r-bloggers.com/smoothscatter-with-ggplot2/
+
+```{r warning=FALSE, message=FALSE, fig.height =8, fig.width=8}
+soy_predictors <- Soybean[,2:36]
+
+par(mfrow = c(3, 6))
+
+for (i in 1:ncol(soy_predictors)) 
+  {
+  plot(soy_predictors[ ,i], ylab = names(soy_predictors[i]))+
+  #smoothScatter(soy_predictors[ ,i], ylab = names(soy_predictors[i]))+
+  theme_classic()
+  #scale_fill_continuous(low = "white", high = "red")
+  }
+```
+
+```{r warning=FALSE, message=FALSE}
+library(caret)
+
+nearZeroVar(soy_predictors, names = TRUE, saveMetrics=T)
+```
+
+Our tests reveal thatthat we do not have variables with a unique value. We do however see several variables that have rare values such as leaf.mild, mycelium, and sclerotia. These are degenerate variables by definition. 
+
+* b) Roughly 18% of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?
+
+Lets recall our missing data plot before investigating the relation to classes:
+
+```{r warning=FALSE, message=FALSE, fig.height = 10, fig.width=10}
 plot_missing(Soybean)
 ```
+
+As a whole, we can see that we have 4 predictors have the highest amount of missing data by percentage. Overall, we do not exceed 20% in terms of data missing per predictor. 
+
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+
+Soybean %>%
+mutate(Total = n()) %>% 
+filter(!complete.cases(.)) %>%
+group_by(Class) %>%
+mutate(Missing = n(), Proportion=Missing/Total) %>%
+select(Class, Missing, Proportion) %>%
+unique()
+```
+
+If we partition the data by class and drill down into the percent missing per class, we can identify what class is missing the most data. phytophthora-rot is the class that accounts for the most missing data. We could have also done these calcualtions using sqldf package. 
+
+
+* c) Develop a strategy for handling missing data, either by eliminating predictors or imputation.
+
+We can work on this problem and see how things change according to the approach we decide to take. 
+
+Lets start with the most simple: Removing predictors
+The overall percentage of data missing per variable is less than the 25 threshold to alltogether drop variables. Lets see what the relationship between variables is through correlation.   
 
 
