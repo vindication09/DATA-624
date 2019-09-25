@@ -258,7 +258,7 @@ Summary After Box-Cox
 summary(transformed)
 ```
 
-We can see that the transform has made a difference in some of the predictors but not all. Next step would be outlier detection but that is out of scope for the problem. 
+We can see that the transform has made a difference in some of the predictors but not all. Next step would be outlier treatment but that is out of scope for the problem. 
 
 
 ### 3.2) 
@@ -268,7 +268,7 @@ spots, mold growth). The outcome labels consist of 19 distinct classes.
 ```{r warning=FALSE, message=FALSE, fig.height = 10, fig.width=10}
 library(mlbench)
 data(Soybean)
-str(Soybean)
+#str(Soybean)
 plot_missing(Soybean )
 ```
 
@@ -344,7 +344,48 @@ If we partition the data by class and drill down into the percent missing per cl
 
 We can work on this problem and see how things change according to the approach we decide to take. 
 
-Lets start with the most simple: Removing predictors
-The overall percentage of data missing per variable is less than the 25 threshold to alltogether drop variables. Lets see what the relationship between variables is through correlation.   
+* Method of Imputation using Mice package
+
+https://datascienceplus.com/imputing-missing-data-with-r-mice-package/
+
+After reading the method definitions, it makes more sense to use method = PMM
+https://www.analyticsvidhya.com/blog/2016/03/tutorial-powerful-packages-imputing-missing-values/
+
+
+```{r, warning=FALSE, message=FALSE}
+library(rcompanion)
+library(psych)
+library(DescTools)
+library(mice)
+
+the_soy <- mice(Soybean, method="pmm", printFlag=F, seed=112)
+
+the_soy <- complete(the_soy)
+
+the_soy <- as.data.frame(the_soy)
+
+plot_missing(the_soy)
+```
+
+We can see that we no longer have missing data, however it is vital that we check the new distributions of our data.
+
+```{r warning=FALSE, message=FALSE}
+soy_predictors2 <- the_soy[,2:36]
+
+par(mfrow = c(3, 6))
+
+for (i in 1:ncol(soy_predictors2)) 
+  {
+  plot(soy_predictors2[ ,i], ylab = names(soy_predictors2[i]))+
+  #smoothScatter(soy_predictors[ ,i], ylab = names(soy_predictors[i]))+
+  theme_classic()
+  #scale_fill_continuous(low = "white", high = "red")
+  }
+```
+
+
+
+
+
 
 
