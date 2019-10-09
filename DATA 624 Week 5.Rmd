@@ -199,8 +199,105 @@ print(paste0("upper Confidence Interval: ", holt(books[,2],h=1)$mean[1]+1.96*h2)
 ## 7.10
 For this exercise use data set ukcars, the quarterly UK passenger vehicle production data from 1977Q1–2005Q1
 
+* a) Plot the data and describe the main features of the series
+
+We are working with Quarterly UK passenger car production from 1977 to 2005. Our data is time partioned by year. 
+
+```{r warning=FALSE, message=FALSE}
+autoplot(ukcars)
+```
+
+We can observe evidence of seasonal effects within the series. We see a decreasing trend up until the 1980. 1980 is an inflection point since the trend begins to increase up until the sudden drop in 2000. 2000 is another inflection point since we observe production to begin increasing again. 
+
+* b) Decompose the series using STL and obtain the seasonally adjusted data.
+
+```{r warning=FALSE, message=FALSE}
+
+decompose <- stl(ukcars, s.window="periodic", robust=TRUE)
+
+seasonal <- decompose$time.series[,1]
+
+ukcars_adjusted <- ukcars - seasonal
+
+autoplot(ukcars_adjusted)
+```
 
 
+* c) Forecast the next two years of the series using an additive damped trend method applied to the seasonally adjusted data. (This can be done in one step using stlf() with arguments etsmodel="AAN", damped=TRUE.)
 
+```{r warning=FALSE, message=FALSE}
 
+mod1 <- stlf(ukcars, s.window = 13, robust = TRUE, etsmodel="AAN", damped=TRUE)
+
+mod1_forecast <- forecast(mod1, h = 8)
+
+autoplot(mod1_forecast) +  xlab("Quarter") + ylab("Passenger Car Production (thousands)") + ggtitle("STLF Forecast for UK Passenger Car Production")+   autolayer(mod1_forecast, series = "Car Production");
+
+summary(mod1)
+```
+
+* d) Forecast the next two years of the series using Holt’s linear method applied to the seasonally adjusted data (as before but with damped=FALSE).
+
+```{r warning=FALSE, message=FALSE}
+mod2 <- stlf(ukcars, s.window = 13, robust = TRUE, etsmodel="AAN", damped=FALSE)
+
+mod2_forecast <- forecast(mod2, h = 8)
+
+autoplot(mod2_forecast) +  xlab("Quarter") + ylab("Passenger Car Production (thousands)") + ggtitle("Holt's Linear Method for UK Passenger Car Production") + autolayer(mod2_forecast, series = "Car Production");
+
+summary(mod2)
+```
+
+* e) Now use ets() to choose a seasonal model for the data.
+
+```{r warning=FALSE, message=FALSE}
+mod3 <- ets(ukcars)
+
+mod3_forecast <- forecast(mod3, h = 8)
+
+autoplot(mod3_forecast) +  xlab("Quarter") + ylab("Passenger Car Production (thousands)") + ggtitle("ETS Method for UK Passenger Car Production") + autolayer(mod3_forecast, series = "Car Production");
+
+summary(mod3_forecast)
+```
+
+* e) Compare the RMSE of the ETS model with the RMSE of the models you obtained using STL decompositions. Which gives the better in-sample fits?
+
+```{r warning=FALSE, message=FALSE}
+print("Additive")
+accuracy(mod1_forecast);
+
+print("Holt")
+accuracy(mod2_forecast);
+
+print("ETS")
+accuracy(mod3_forecast)
+```
+
+Based on the RMSE scores from the three models, the additive model has the lowest RMSE. By definition, the lower the RMSE, the better the forecast. It should be noted that overall, there is no major difference between RMSE scores. It is more accurate to say that the additive model is marginally better than the Holts linear model or ETs model. 
+
+* g) Compare the forecasts from the three approaches? Which seems most reasonable?
+
+```{r}
+plot(mod1, main="Additive Model");
+
+plot(mod2, main="Holt Linear Model");
+
+plot(mod3_forecast, main="ETS Model")
+```
+
+Out of the three models we have fit, the additive model is still the better of the three, even if it is marginally better than the Holt linear method and ETS model. 
+
+* g) Check the residuals of your preferred model.
+
+```{r warning=FALSE, message=FALSE}
+
+selected_fit <- stlf(ukcars, s.window = 13, robust = TRUE, etsmodel="AAN", damped=TRUE)
+
+selected_forecast <- forecast(selected_fit, h = 8)
+
+checkresiduals(selected_forecast)
+
+```
+
+Aside from the residuals having a minor left skew, we can tell that the underlying assumption of residuals is met overall. There is certainly the potnetial for improvement, however we leave that as a suggestion. The rest of the output reveals that there is no clear and cut trend. 
 
