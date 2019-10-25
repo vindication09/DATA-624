@@ -1,0 +1,214 @@
+---
+title: "DATA 624 Week 9"
+author: "Vinicio Haro"
+date: "October 21, 2019"
+output: html_document
+---
+
+# DATA 624 Week 9
+## KJ 6.3
+
+### 6.3) 
+A chemical manufacturing process for a pharmaceutical product was discussed in Sect. 1.4. In this problem, the objective is to understand the relationship between biological measurements of the raw materials (predictors),measurements of the manufacturing process (predictors), and the response of
+product yield. Biological predictors cannot be changed but can be used to assess the quality of the raw material before processing. On the other hand, manufacturing process predictors can be changed in the manufacturing process. Improving product yield by 1% will boost revenue by approximately one hundred thousand dollars per batch:
+
+* a) Start R and use these commands to load the data:
+
+```{r warning=FALSE, message=FALSE}
+library(AppliedPredictiveModeling)
+
+data(ChemicalManufacturingProcess)
+
+cd<-ChemicalManufacturingProcess
+
+summary(ChemicalManufacturingProcess)
+
+```
+
+Lets examine the distributions of predictors. 
+
+```{r warning=FALSE, message=FALSE}
+library(DataExplorer)
+
+plot_histogram(cd)
+```
+
+
+The matrix processPredictors contains the 57 predictors (12 describing the input biological material and 45 describing the process predictors) for the 176 manufacturing runs. yield contains the percent yield for each run.
+
+* b) A small percentage of cells in the predictor set contain missing values. Use
+an imputation function to fill in these missing values
+
+```{r warning=FALSE, message=FALSE, fig.height = 12, fig.width=10}
+plot_missing(cd)
+```
+
+Our missing data plot shows that the target variable is complete. Manufactuing process 03 is missing 8.52 percent of entires. There are more predictors missing less than 3 percent of their entries. This is an ideal situation to impute variables. 
+
+The impute package is not available in CRAN. We need to install it directly from BiocManager. We utilize knn method to impute missing values across all variables with missing data. We essentially use k nearest neighbors toimpute the missing values. For each variable with missing data, we use Euclidean distance to identify the k nearest neighbors. If we are missing a coordinate to compute the distance, the package uses the average distance from the closest non missing coordinates. This package assumes that not all variables are missing data. 
+
+Some other methods of imputation include using the mean or median of each variable to fill in the NA's. 
+
+http://www.bioconductor.org/packages/release/bioc/html/impute.html
+
+
+```{r warning=FALSE, message=FALSE, fig.height = 12, fig.width=10}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("impute")
+
+library(impute)
+
+cd2 <- impute.knn(as.matrix(cd))
+
+cd2 <- as.data.frame(cd2$data)
+
+plot_missing(cd2)
+```
+
+We are no longer missing data. We can see that impute has worked correctly. We display new summary statistics. 
+
+```{r warning=FALSE, message=FALSE}
+summary(cd2)
+```
+
+* c) Split the data into a training and a test set, pre-process the data, and tune a model of your choice from this chapter. What is the optimal value of the performance metric?
+
+```{r eval=FALSE, include=FALSE}
+
+#packageUrl<- "https://cran.rstudio.com/bin/windows/contrib/3.6/rlang_0.4.0.zip"
+#install.packages(packageUrl, repos=NULL, type='source')
+
+#install.packages("remotes")
+#remotes::install_github("r-lib/rlang")
+```
+
+Lets see the correlation between variables and the predictor
+```{r, warning=FALSE, message=FALSE, fig.height = 12, fig.width=12}
+#correlation matrix and visualization 
+correlation_matrix <- round(cor(cd2),2)
+# Get lower triangle of the correlation matrix
+  get_lower_tri<-function(correlation_matrix){
+    correlation_matrix[upper.tri(correlation_matrix)] <- NA
+    return(correlation_matrix)
+  }
+  # Get upper triangle of the correlation matrix
+  get_upper_tri <- function(correlation_matrix){
+    correlation_matrix[lower.tri(correlation_matrix)]<- NA
+    return(correlation_matrix)
+  }
+  
+  upper_tri <- get_upper_tri(correlation_matrix)
+library(reshape2)
+# Melt the correlation matrix
+melted_correlation_matrix <- melt(upper_tri, na.rm = TRUE)
+# Heatmap
+library(ggplot2)
+ggheatmap <- ggplot(data = melted_correlation_matrix, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed()
+#add nice labels 
+ggheatmap + 
+geom_text(aes(Var2, Var1, label = value), color = "black", size = 2) +
+theme(
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  axis.text.x=element_text(size=rel(0.4), angle=90),
+  axis.text.y=element_text(size=rel(0.4)),
+  panel.grid.major = element_blank(),
+  panel.border = element_blank(),
+  panel.background = element_blank(),
+  axis.ticks = element_blank(),
+  legend.justification = c(1, 0),
+  legend.position = c(0.6, 0.7),
+  legend.direction = "horizontal")+
+  guides(fill = guide_colorbar(barwicrash_training2h = 7, barheight = 1,
+                title.position = "top", title.hjust = 0.5))
+
+```
+
+We can see several predictors that ar quite correlated with each other. We can use a function to apply a correlation threshold and remove pairwise correlations. Lets remove any pairwise correlation greater than .7. We are essentially being proactive when it comes to avoiding multicolinearity. 
+
+```{r warning=FALSE, message=FALSE}
+library(caret)
+
+
+cd3 = cor(cd2)
+hc = findCorrelation(cd3, cutoff=0.7) # putt any value as a "cutoff" 
+hc = sort(hc)
+reduced_Data = cd2[,-c(hc)]
+names(reduced_Data)
+```
+
+
+
+```{r warning=FALSE, message=FALSE}
+#reduced data 
+set.seed(20)
+
+train_row_partition <- createDataPartition(reduced_Data$Yield, p=0.8, list=FALSE)
+
+X_train <- reduced_Data[train_row_partition, -1]
+
+y_train <- reduced_Data[train_row_partition, 1]
+
+X_test <- reduced_Data[-train_row_partition, -1]
+
+y_test <- reduced_Data[-train_row_partition, 1]
+```
+
+
+
+Fit an Initial Model 
+
+We will be fitting a partial least squares model using the train function. We specify method to pls and request the 20 best fits based on RMSE. We build the model on the features that were selected from dropping variables that had pairwise correlation. We also use 10 fold cross validation. On a high level, this means that we will parition the training data into k equally sized sets and retain one of those ki sets to validate our model. 
+
+
+```{r warning=FALSE, message=FALSE}
+pls_tunned <- train(X_train, y_train, method = "pls",tuneLength = 20, trControl=trainControl(method='cv'), preProc = c("center", "scale"))
+
+pls_tunned;
+plot(pls_tunned)
+```
+
+The plot reveals the the optimal value of components. In terms of r squared , ncomp 13 is the ideal parameter. 
+
+* d) Predict the response for the test set.What is the value of the performance metric and how does this compare with the resampled performance metric on the training set?
+
+```{r warning=FALSE, message=FALSE}
+pred_pls <- predict(pls_tunned, newdata=X_test)
+
+predResult <- postResample(pred=pred_pls, obs=y_test)
+
+predResult
+
+```
+
+The performance is pretty similar on the test data vs the training data. 
+
+* e) Which predictors are most important in the model you have trained? Do either the biological or process predictors dominate the list?
+
+```{r warning=FALSE, message=FALSE}
+pls_tunned$finalModel$coefficients
+
+key_features <- varImp(pls_tunned)
+
+plot(key_features, top=20)
+```
+
+
+Manufacturing Process 36 is the most important predictor followed by BiologicalMaterial03.Overall, the process is doinated by manufacturing process predictors. 
+
+* f) Explore the relationships between each of the top predictors and the response. How could this information be helpful in improving yield in future
+runs of the manufacturing process?
+
+We are unable to change biological process but make alterations to the raw input materials that go into the biological process. Based on the importance of bio process 3, we could perhaps explore making changes into the raw materials. Manufacturing process 36 is the most important. I suggest using experimental design to compare that particular process with the other manufacturing processes. We want to see why a process such as 19 is not as important as 36. 
+
+
